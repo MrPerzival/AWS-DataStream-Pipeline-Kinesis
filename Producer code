@@ -1,0 +1,44 @@
+import json
+import boto3
+from botocore.exceptions import ClientError
+
+kinesis = boto3.client('kinesis')
+s3 = boto3.client('s3')
+
+def lambda_handler(event, context):
+    try:
+        # Extract bucket name and file key from the event
+        bucket = event['Records'][0]['s3']['bucket']['name']
+        key = event['Records'][0]['s3']['object']['key']
+        
+        # Get the file type (assumption: file type is the extension)
+        filetype = key.split('.')[-1]
+        
+        # Prepare data for Kinesis
+        data = {
+            'filename': key,
+            'filetype': filetype
+        }
+        
+        # Send data to Kinesis Stream
+        kinesis.put_record(
+            StreamName='your-kinesis-stream-name',
+            Data=json.dumps(data),
+            PartitionKey=key
+        )
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps('File processed successfully')
+        }
+        
+    except ClientError as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps(f"ClientError: {e}")
+        }
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps(f"Exception: {e}")
+        }
